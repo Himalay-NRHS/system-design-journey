@@ -1,60 +1,56 @@
-# Docker — From Zero to Working Mental Model
+# Docker — From Zero to Production Mental Model
 
 
-
-## 1. Why Docker Exists (First Principles)
-
-### The core problem
-
-* Software runs fine on **my laptop**
-* Breaks on **your laptop / server / cloud**
-
-Reasons:
-
-* Different OS versions
-* Different libraries
-* Different environment variables
-* Different system configs
-
-### Old solution (bad)
-
-* Manually install everything
-* Write long setup docs
-* Still breaks
-
-### Docker solution
-
-* Package **app + dependencies + environment** together
-* Run the same way **everywhere**
-
-> Docker = **standardized execution environment**
 
 ---
 
-## 2. What Docker Actually Is
+## 1. Why Docker Exists (First Principles)
 
-Docker is **NOT**:
+### The problem
+
+* Code works on my machine
+* Fails on another machine
+
+Reasons:
+
+* OS differences
+* Library versions
+* Environment variables
+* System configuration
+
+### Docker’s solution
+
+* Package **app + dependencies + environment**
+* Run the same way everywhere
+
+> Docker = standardized execution environment
+
+---
+
+## 2. What Docker Is (and Is Not)
+
+Docker is NOT:
 
 * A virtual machine
 * A full operating system
 
-Docker **IS**:
+Docker IS:
 
 * Process isolation using the **host OS kernel**
-* Uses Linux features:
+* Built on Linux features:
 
-  * namespaces (isolation)
-  * cgroups (resource limits)
+  * namespaces
+  * cgroups
 
 Result:
 
 * Lightweight
 * Fast startup
-* Near‑native performance
+* Near-native performance
 
 ---
 
-## 3. Docker vs Virtual Machine (Mental Model)
+## 3. Container vs Virtual Machine
 
 ### Virtual Machine
 
@@ -70,11 +66,11 @@ Hardware
 * Slow boot
 * Full OS per VM
 
-### Docker
+### Docker Container
 
 ```
 Hardware
-└── Host OS (kernel shared)
+└── Host OS (shared kernel)
     └── Docker Engine
         └── App + dependencies
 ```
@@ -87,30 +83,30 @@ Hardware
 
 ## 4. What Is a Container
 
-A **container** is:
+A container is:
 
-* A running process
+* A **running process**
 * With isolated:
 
   * filesystem
   * network
   * process tree
 
-Key points:
+Important:
 
-* Containers are **ephemeral**
+* Containers are ephemeral
 * Delete container → data gone (unless volumes)
 
 ---
 
 ## 5. What Is an Image
 
-An **image** is:
+An image is:
 
-* Read‑only template
+* Read-only template
 * Blueprint for containers
 
-Think:
+Mental model:
 
 * Image = class
 * Container = object
@@ -119,7 +115,7 @@ Images are built using a **Dockerfile**
 
 ---
 
-## 6. Docker Engine Architecture
+## 6. Docker Architecture (Execution Pipeline)
 
 ```
 Docker CLI
@@ -129,26 +125,42 @@ Docker Daemon (dockerd)
 containerd → runc → Linux kernel
 ```
 
-### Docker Daemon
+### Docker CLI
+
+* Command-line client
+* Sends requests to daemon
+
+### Docker Daemon (dockerd)
 
 * Background service
-* Manages images, containers, networks
+* Manages images, containers, networks, volumes
 
-### Daemon impact on startup time
+### containerd
 
-* Yes, daemon starts on boot
-* Lightweight
-* Negligible impact on Windows startup
+* Manages container lifecycle
+* Used by Docker and Kubernetes
+
+### runc
+
+* Low-level runtime
+* Creates isolated Linux processes
+
+### Linux Kernel
+
+* Enforces isolation and limits
+
+> Containers are normal Linux processes with restrictions
 
 ---
 
 ## 7. What Is a Daemon
 
-A **daemon**:
+A daemon is a program that:
 
-* Background service
-* No UI
-* Starts with OS
+* Runs in the background
+* Has no UI
+* Starts at boot
+* Listens for requests
 
 Examples:
 
@@ -158,300 +170,245 @@ Examples:
 
 Docker daemon:
 
-* Listens for Docker CLI commands
-* Creates containers
+* Keeps running even if CLI closes
+* Startup impact is negligible
 
 ---
 
-## 8. Docker Isolation & Security
+## 8. Linux Namespaces & cgroups
 
-### How Docker achieves isolation
+### Namespaces
 
-* **Namespaces**:
+* Isolate what a process can see
+* PID, NET, MOUNT, USER
 
-  * PID namespace → process isolation
-  * NET namespace → network isolation
-  * MOUNT namespace → filesystem isolation
+### cgroups (Control Groups)
 
-* **cgroups**:
+* Limit what a process can use
 
-  * CPU limits
-  * Memory limits
+Controls:
 
-### Malware question
+* CPU
+* Memory
+* Disk I/O
 
-> If I download malware inside a container, will it affect Windows?
+Docker example:
 
-Answer:
+```bash
+docker run --memory=512m --cpus=1 nginx
+```
 
-* Normally **NO**
-* Container is isolated
-* Malware stays inside container
+Mental model:
 
-Exception:
+> namespaces isolate visibility, cgroups limit usage
 
-* If container runs:
+---
 
-  * `--privileged`
-  * root user
-  * mounted host filesystem
+## 9. Docker Isolation & Security
+
+* Containers are isolated by default
+* Malware inside container usually cannot affect host
+
+Unsafe cases:
+
+* `--privileged`
+* Mounting host filesystem
+* Running as root
 
 Rule:
 
-> Containers are safe **if you don’t punch holes** in isolation
+> Containers are safe unless you break isolation
 
 ---
 
-## 9. Why Containers Instead of One Big App
+## 10. Why Many Containers Instead of One (in Docker compose)
 
-Reasons:
+Benefits:
 
 * Separation of concerns
 * Independent scaling
-* Independent failure
+* Fault isolation
 
 Example:
 
-* frontend container
-* backend container
-* database container
-* redis container
-
-If one crashes → others live
+* frontend
+* backend
+* database
+* redis
 
 ---
 
-## 10. Redis Without Docker (Alternative Way)
+## 11. Redis Without Docker
 
-Redis can be used without Docker by:
+Possible:
 
-* Installing directly on OS
-* Running as system service
+* Install directly on OS
 
 Why Docker is preferred:
 
-* Zero config
-* Easy version control
-* No OS pollution
+* Zero setup
+* Easy versioning
+* Clean uninstall
 
 ---
 
-## 11. What Is MailHog
+## 12. SMTP & MailHog
 
-MailHog = **fake SMTP server**
+### SMTP
 
-Purpose:
+* Protocol for sending emails
 
-* Catch emails locally
-* No real emails sent
+### MailHog
 
-Used in development to:
-
-* Test email flows
-* Debug email content
+* Fake SMTP server
+* Captures emails locally
+* Used in development
 
 ---
 
-## 12. What Is SMTP
+## 13. Base Images Explained
 
-SMTP = Simple Mail Transfer Protocol
+### If you run
 
-Used for:
-
-* Sending emails
+```bash
+docker run node
+```
 
 Flow:
 
-```
-App → SMTP Server → Recipient Inbox
-```
+* Docker checks local images
+* If not found:
 
-MailHog replaces real SMTP during dev
+  * pulls from Docker Hub
+  * then runs container
 
----
-
-## 13. Docker Base Images (Important Concept)
-
-### Question you asked
-
-> If I select node as base image, which OS does container run on?
-
-Answer:
-
-* Container always runs on **host kernel**
-* Base image only provides:
-
-  * filesystem
-  * libraries
-
-`node` image internally is usually based on:
-
-* Debian
-* Alpine
+Pull is automatic.
 
 ---
 
-## 14. Why People Choose Ubuntu as Base Image
+## 14. Which OS Does a Container Run On?
 
-Reasons:
+* Containers always use **host kernel**
+* Base image provides filesystem + libraries
+
+`node` image internally uses Debian or Alpine
+
+---
+
+## 15. Why Ubuntu Base Image Is Popular
+
+Pros:
 
 * Familiar
-* Large package ecosystem
+* Huge package ecosystem
 * Easy debugging
 
-Downside:
+Cons:
 
 * Larger image size
 
 Alternative:
 
-* Alpine (smaller, faster)
+* Alpine (smaller)
 
 ---
 
-## 15. Basic Docker Commands (Must‑Know)
-
-### Check installation
+## 16. Core Docker Commands
 
 ```bash
 docker --version
-```
-
-### Pull image
-
-```bash
 docker pull ubuntu
-```
-
-### List images
-
-```bash
 docker images
-```
-
-### Run container
-
-```bash
-docker run ubuntu
-```
-
-### Run interactive shell
-
-```bash
-docker run -it ubuntu bash
-```
-
-### List running containers
-
-```bash
 docker ps
-```
-
-### List all containers
-
-```bash
 docker ps -a
-```
-
-### Stop container
-
-```bash
 docker stop <id>
-```
-
-### Remove container
-
-```bash
 docker rm <id>
-```
-
-### Remove image
-
-```bash
 docker rmi <image>
 ```
 
 ---
 
-## 16. Dockerfile (From Absolute Basics)
+## 17. docker run Essentials
 
-A Dockerfile is a **recipe**
+### Interactive mode
 
-### Common instructions
+```bash
+docker run -it ubuntu bash
+```
 
-* `FROM` → base image
-* `RUN` → execute command
-* `WORKDIR` → set working directory
-* `COPY` → copy files
-* `CMD` → default command
+Flags:
+
+* `-i` keep STDIN open
+* `-t` allocate terminal
+
+Without `-it`, shell exits immediately.
+
+### Flag order does not matter
+
+All valid:
+
+```bash
+docker run -it ubuntu bash
+docker run ubuntu -it bash
+docker run -i -t ubuntu bash
+```
 
 ---
 
-## 17. Dockerfile: Ubuntu → Node → App
+## 18. Container Lifecycle
+
+* `docker run` → create + start
+* `docker start` → start existing
+* Main process exits → container stops
+
+Detached mode:
+
+```bash
+docker run -d nginx
+```
+
+---
+
+## 19. Dockerfile (Build vs Run)
+
+### Build-time instructions
+
+* FROM
+* RUN
+* COPY
+* ADD
+
+### Run-time instructions
+
+* CMD
+* ENTRYPOINT
+
+> CMD / ENTRYPOINT run only when container starts
+
+---
+
+## 20. Docker Build Cache
+
+* Each instruction = layer
+* Layers are cached
+
+Correct pattern:
 
 ```Dockerfile
-FROM ubuntu:22.04
-
-RUN apt-get update && apt-get install -y curl
-
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs
-
-WORKDIR /app
-
-COPY . .
-
+COPY package.json package-lock.json ./
 RUN npm install
-
-CMD ["node", "index.js"]
+COPY . .
 ```
+
+Why:
+
+* Code changes don’t invalidate dependency cache
 
 ---
 
-## 18. Build and Run Your Image
+## 21. Volumes
 
-### Build
-
-```bash
-docker build -t my-node-app .
-```
-
-### Run
-
-```bash
-docker run my-node-app
-```
-
-### Run with port mapping
-
-```bash
-docker run -p 3000:3000 my-node-app
-```
-
----
-
-## 19. Environment Variables in Containers
-
-```bash
-docker run -e NODE_ENV=production my-app
-```
-
-Used for:
-
-* secrets
-* configs
-
----
-
-## 20. Volumes (Data Persistence)
-
-Problem:
-
-* Containers are temporary
-
-Solution:
-
-* Volumes
+Persist data beyond container life:
 
 ```bash
 docker run -v mydata:/data my-app
@@ -459,62 +416,118 @@ docker run -v mydata:/data my-app
 
 ---
 
-## 21. Docker Networking (Basic)
-
-Containers communicate via:
-
-* bridge network
+## 22. Networking & Ports
 
 ```bash
-docker network ls
+docker run -p 8080:3000 my-app
 ```
+
+Meaning:
+
+* Host 8080 → container 3000
 
 ---
 
-## 22. Kubernetes (High Level)
+## 23. process.env (Environment Variables)
 
-Docker runs containers
+* Provided by OS
+* Accessible in Node.js via `process.env`
+
+Sources:
+
+* OS
+* Docker `-e`
+* Dockerfile `ENV`
+* Cloud providers
+
+Example:
+
+```bash
+docker run -e PORT=3000 my-app
+```
+
+Useful keys:
+
+* PORT
+* NODE_ENV
+* DATABASE_URL
+* REDIS_URL
+* API_KEY
+
+Rule:
+
+> Never hardcode secrets
+
+---
+
+## 24. Docker Compose
+
+Purpose:
+
+* Run multiple containers together
+
+Example:
+
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+  redis:
+    image: redis
+```
+
+Commands:
+
+```bash
+docker compose up
+docker compose up -d
+docker compose down
+```
+
+Mental model:
+
+> Compose = docker run for systems
+
+---
+
+## 25. Docker Compose vs Kubernetes
+
+| Feature      | Compose | Kubernetes |
+| ------------ | ------- | ---------- |
+| Machines     | 1       | Many       |
+| Scaling      | Manual  | Automatic  |
+| Self-healing | No      | Yes        |
+| Production   | No      | Yes        |
+
+Compose:
+
+* Local dev
 
 Kubernetes:
 
-* Manages containers at scale
-* Auto restart
-* Auto scale
-* Load balancing
+* Production orchestration
 
-Docker = local engine
-K8s = orchestration brain
+> Kubernetes is an operating system for containers
 
 ---
 
-## 23. Mental Checklist Before Using Docker
+## 26. When Not to Use Docker
 
-Ask:
-
-* Do I need isolation?
-* Do I need reproducibility?
-* Do I want easy setup?
-
-If yes → Docker
+* Very small scripts
+* Tight hardware access
+* GUI-heavy apps
 
 ---
 
-## 24. One‑Line Summary
+## 27. Final Mental Model
 
-> Docker packages **code + environment**, runs it **consistently**, isolates it **safely**, and scales it **cleanly**.
-
----
-
-## 25. How to Use This Doc
-
-* Read once fully
-* Then use as command reference
-* Extend with:
-
-  * Docker Compose
-  * Multi‑stage builds
-  * Production hardening
+* Docker packages environment
+* Runs processes in isolation
+* Uses kernel features
+* Enables reproducible systems
 
 ---
 
-End of document.
+End of document
