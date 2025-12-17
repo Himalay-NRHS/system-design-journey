@@ -1,21 +1,29 @@
-# Databases – System Design Notes
+# Database Fundamentals – System Design Notes
 
-## 1. What is a Database?
-A database is a system that:
-- Stores data persistently
-- Allows reading and writing data efficiently
-- Enforces rules like consistency, isolation, durability
-- Supports concurrent access by multiple users/processes
+---
 
-At core:
-> **Database = Data + Query Engine + Storage Engine + Concurrency Control**
+## 1. What is a Database
+A database is a system that stores data persistently and allows multiple users or programs to read and write that data safely and efficiently.
+
+A database internally manages:
+- Storage on disk
+- Query execution
+- Transactions
+- Concurrency control
+- Crash recovery
 
 ---
 
 ## 2. Types of Databases
 
 ### 2.1 Relational Databases (SQL)
-Data is stored in **tables (rows × columns)** with a fixed schema.
+Relational databases store data in tables with rows and columns using a fixed schema.
+
+Key characteristics:
+- Predefined schema
+- Relationships via foreign keys
+- Strong consistency
+- Full ACID transactions
 
 Examples:
 - MySQL
@@ -23,310 +31,306 @@ Examples:
 - Oracle
 - SQL Server
 
-Key ideas:
-- Schema first
-- Relations via foreign keys
-- Strong consistency
-- SQL for querying
-
 ---
 
 ### 2.2 Non-Relational Databases (NoSQL)
-Data is stored in **flexible formats**, schema optional.
+Non-relational databases store data in flexible formats and are designed for scale.
+
+Key characteristics:
+- Schema-less or flexible schema
+- Horizontally scalable
+- Often eventual consistency
+- Optimized for specific workloads
 
 Types:
-- Key–Value (Redis)
-- Document (MongoDB)
-- Wide-Column (Cassandra)
-- Graph (Neo4j)
-
-Key ideas:
-- Schema flexible or schema-less
-- Optimized for scale
-- Often eventual consistency
-- Different query models
+- Key–Value: Redis
+- Document: MongoDB
+- Wide-column: Cassandra
+- Graph: Neo4j
 
 ---
 
 ## 3. Relational vs Non-Relational
 
 | Aspect | Relational | Non-Relational |
-|------|-----------|---------------|
+|------|------------|----------------|
 | Schema | Fixed | Flexible |
-| Consistency | Strong (ACID) | Often eventual |
-| Transactions | Yes | Limited / partial |
-| Scaling | Vertical (mainly) | Horizontal (native) |
-| Joins | Supported | Usually avoided |
-| Use case | Financial, banking | Large-scale, fast apps |
+| Transactions | Full ACID | Limited |
+| Scaling | Vertical (mostly) | Horizontal |
+| Joins | Supported | Avoided |
+| Consistency | Strong | Eventual (often) |
 
 ---
 
-## 4. When to Use Which
+## 4. Transactions
 
-### Use Relational DB when:
-- Data relationships matter
-- Transactions are critical
-- Strong consistency is required
-- Complex queries and joins needed
+### 4.1 What is a Transaction
+A transaction is a group of database operations executed as a single logical unit.
 
-Examples:
-- Banking systems
-- Order management
-- Inventory systems
+Either:
+- All operations succeed and are committed
+- Any operation fails and everything is rolled back
 
 ---
 
-### Use Non-Relational DB when:
-- Data structure changes frequently
-- Massive read/write scale
-- Low latency is more important than strict consistency
-- Simple access patterns
-
-Examples:
-- Caching (Redis)
-- Social feeds
-- Logs, metrics
-- Real-time analytics
+### 4.2 Why Transactions Are Needed
+Transactions ensure data correctness, prevent partial updates, and protect against crashes and concurrent access issues.
 
 ---
 
-## 5. ACID Properties
+### 4.3 Transaction Syntax (SQL)
 
-ACID ensures **correctness of transactions**.
+```sql
+BEGIN;
 
-### A – Atomicity
-- Transaction is all or nothing
-- Partial updates are rolled back
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
 
-Example:
-Money transfer:
-- Debit A
-- Credit B  
-If credit fails → debit must rollback
+COMMIT;
+-- or
+ROLLBACK;
 
----
-
-### C – Consistency
-- Database moves from one valid state to another
-- Constraints, rules, triggers are respected
+### 4.4 Autocommit
+- Default mode in most databases
+- Each SQL statement runs as its own transaction
+- Explicit `BEGIN` / `START TRANSACTION` disables autocommit until `COMMIT` or `ROLLBACK`
 
 ---
 
-### I – Isolation
-- Concurrent transactions should not interfere
+## 5. ACID Properties (Transaction Context)
 
-Handled using **isolation levels** (below).
+### Atomicity
+All operations inside a transaction either complete fully or none of them are applied.
+
+### Consistency
+A transaction moves the database from one valid state to another while respecting constraints.
+
+### Isolation
+Multiple transactions can execute concurrently without seeing each other’s intermediate states.
+
+### Durability
+Once a transaction is committed, its changes survive crashes using logs and disk writes.
 
 ---
 
-### D – Durability
-- Once committed, data survives crashes
-- Ensured via WAL, logs, disk flush
+## 6. Isolation Levels (Explained Using Transactions)
+
+Isolation level defines how visible one transaction’s changes are to other transactions.
 
 ---
-
-## 6. Isolation Levels (Important)
-
-Isolation defines **how visible one transaction is to others**.
 
 ### 6.1 Read Uncommitted
-- Can read uncommitted data
-- Dirty reads possible
-- Fast but unsafe
+A transaction can read data written by another uncommitted transaction.
+
+Issue:
+- Dirty reads
 
 ---
 
 ### 6.2 Read Committed
-- Only committed data is visible
-- Dirty reads prevented
-- Non-repeatable reads possible
+A transaction can read only committed data, but repeated reads may return different values.
 
-(Default in many DBs)
+Issue:
+- Non-repeatable reads  
+Default in PostgreSQL and Oracle.
 
 ---
 
 ### 6.3 Repeatable Read
-- Same row read twice gives same result
-- Prevents dirty + non-repeatable reads
-- Phantom reads possible
+Rows read by a transaction cannot change until the transaction ends.
 
-(MySQL default)
+Issue:
+- Phantom reads  
+Default in MySQL (InnoDB).
 
 ---
 
 ### 6.4 Serializable
-- Transactions run as if sequential
-- No dirty, non-repeatable, or phantom reads
-- Slowest but safest
+Transactions behave as if they run one after another, not concurrently.
+
+- Safest isolation level
+- Lowest concurrency
+- Highest overhead
 
 ---
 
-## 7. What is Scaling?
-Scaling = **handling more load (users, data, queries)**.
+## 7. Scaling a Database
 
-Load can increase due to:
-- More users
-- More data
-- More queries per second
+### What is Scaling
+Scaling means increasing the system’s ability to handle more users, data, or queries.
 
 ---
 
-## 8. Vertical Scaling (Scale Up)
+### 7.1 Vertical Scaling (Scale Up)
+Increase resources of a single machine such as CPU, RAM, or disk.
 
-### What it means:
-- Increase power of a single machine
-
-Examples:
-- More RAM
-- Faster CPU
-- Bigger disk
-
-### Pros:
+Pros:
 - Simple
-- No app changes
+- No application changes
 
-### Cons:
-- Hardware limit
-- Expensive
+Cons:
+- Hardware limits
 - Single point of failure
-
-Used mostly by **relational DBs**.
+- Expensive
 
 ---
 
-## 9. Horizontal Scaling (Scale Out)
+### 7.2 Horizontal Scaling (Scale Out)
+Add more machines and distribute load or data across them.
 
-### What it means:
-- Add more machines
-- Distribute data across them
-
-Examples:
-- Multiple DB nodes
-- Load balanced reads/writes
-
-### Pros:
-- Practically unlimited scale
+Pros:
+- High scalability
 - Fault tolerant
 
-### Cons:
-- Complex
-- Data consistency harder
-
-Used mostly by **NoSQL DBs**.
+Cons:
+- Complex architecture
+- Harder consistency management
 
 ---
 
-## 10. Partitioning
+## 8. Partitioning
 
-### What it is:
-- Splitting a table into smaller logical parts
-- Still on the same database/server
+Partitioning divides a table into smaller logical parts within the same database instance.
 
 Types:
 - Range partitioning
 - Hash partitioning
 - List partitioning
 
-Example:
-Users table partitioned by year of signup.
-
 Purpose:
 - Faster queries
 - Easier maintenance
+- Better data organization
 
 ---
 
-## 11. Sharding
+## 9. Sharding
 
-### What it is:
-- Horizontal partitioning **across multiple machines**
-- Each shard has a subset of data
+Sharding splits data across multiple database servers.
 
-Example:
-- Users A–M → Shard 1
-- Users N–Z → Shard 2
+Each shard stores only a subset of the total data.
 
 Key points:
-- Each shard is independent
-- App must know where data lives
-- Cross-shard joins are hard
+- Enables horizontal scaling
+- Application decides which shard to access
+- Cross-shard joins are difficult
 
 ---
 
-## 12. Replication
+## 10. Replication
 
-### What it is:
-- Copying data to multiple nodes
+Replication copies data from one database node to one or more other nodes.
 
-Types:
-- Master–Slave
-- Leader–Follower
-- Multi-Leader
-
-Why needed:
+Used for:
 - High availability
 - Read scaling
 - Fault tolerance
 
 ---
 
-## 13. CAP Theorem (System Design Core)
+## 11. Read Replicas
 
-A distributed system can guarantee only **two of three**:
+### 11.1 What is a Read Replica
+A read replica is a copy of the primary database used only for read operations.
 
-- **C**onsistency
-- **A**vailability
-- **P**artition tolerance
+- Writes go to primary
+- Reads go to replicas
 
-Examples:
-- RDBMS: CP
-- MongoDB: CP / AP (configurable)
-- Cassandra: AP
-- Redis: CP (single leader)
+---
+
+### 11.2 Synchronous Replication
+Primary waits for replica acknowledgment before committing.
+
+- Strong consistency
+- Higher latency
+
+Used when data loss is unacceptable.
+
+---
+
+### 11.3 Asynchronous Replication
+Primary commits immediately and replicas update later.
+
+- Faster writes
+- Replica lag possible
+
+Most common in real-world systems.
+
+---
+
+### 11.4 Why Read Replicas Are Used
+- Scale read-heavy workloads
+- Reduce load on primary database
+- Improve availability
+- Enable geo-distributed reads
+
+---
+
+### 11.5 Trade-offs
+- Stale reads possible
+- Not suitable for strict read-after-write consistency
+
+---
+
+## 12. Distributed Systems
+
+### What is a Distributed System
+A distributed system is a collection of independent machines that work together and appear as a single system.
+
+Databases become distributed when:
+- Data is replicated
+- Data is sharded
+- Multiple nodes handle requests
+
+---
+
+### Challenges in Distributed Systems
+- Network failures
+- Partial outages
+- Data consistency
+- Node coordination
+
+---
+
+## 13. CAP Theorem
+
+In a distributed system, only two of the following three can be guaranteed at the same time:
+- Consistency
+- Availability
+- Partition tolerance
+
+Trade-offs are unavoidable.
 
 ---
 
 ## 14. Picking the Right Database
 
-Ask these questions:
-1. Do I need transactions?
-2. Do relationships matter?
-3. How much data growth?
-4. Read heavy or write heavy?
-5. Latency critical or consistency critical?
-
-### Common Pattern:
-- PostgreSQL/MySQL → source of truth
-- Redis → cache
-- Elasticsearch → search
-- Cassandra → large writes
+Key questions:
+1. Do I need strong transactions?
+2. Are data relationships important?
+3. Expected scale?
+4. Read-heavy or write-heavy workload?
+5. Can the system tolerate stale reads?
 
 ---
 
 ## 15. Polyglot Persistence
-Using **multiple databases** for different needs.
+
+Using multiple databases for different purposes in the same system.
 
 Example:
-- PostgreSQL → orders
-- Redis → sessions
-- MongoDB → user profiles
-- Kafka → event stream
-
-Modern systems almost always do this.
+- PostgreSQL for core transactional data
+- Redis for caching
+- Elasticsearch for search
+- Cassandra for high write throughput
 
 ---
 
-## 16. Summary (One-Look)
+## 16. Summary
 
-- SQL → correctness, structure, transactions
-- NoSQL → scale, speed, flexibility
-- Vertical scaling → bigger machine
-- Horizontal scaling → more machines
-- Partitioning → inside one DB
-- Sharding → across DBs
-- ACID → correctness
-- CAP → distributed tradeoffs
-
----
-
-**End of Notes**
+- Transactions ensure correctness
+- Isolation controls concurrency
+- Replication improves availability
+- Sharding enables scale
+- Distributed systems require trade-offs
+- No single database fits all use cases
