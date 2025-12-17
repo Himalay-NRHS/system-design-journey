@@ -519,14 +519,8 @@ Kubernetes:
 * Tight hardware access
 * GUI-heavy apps
 
----
 
-## 27. Final Mental Model
 
-* Docker packages environment
-* Runs processes in isolation
-* Uses kernel features
-* Enables reproducible systems
 
 ---
 
