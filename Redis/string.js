@@ -1,34 +1,45 @@
 const client = require('./client')
 
-// Simple, short examples for quick revision
+// Simple, short Redis command syntax examples for quick revision
 
 async function main() {
-    console.log("=== STRINGS ===")
+    // STRINGS: set and get a simple key
+
     await client.set("name", "himalay")
-    console.log("GET name ->", await client.get("name"))
 
-    console.log("\n=== LISTS ===")
+    await client.get("name")
+
+    // LISTS: create a list and read its elements
+
     await client.del("numbers")
+
     await client.rpush("numbers", 1, 2, 3)
-    console.log("LRANGE numbers 0 -1 ->", await client.lrange("numbers", 0, -1))
 
-    console.log("\n=== SETS ===")
+    await client.lrange("numbers", 0, -1)
+
+    // SETS: add unique members and read all members
+
     await client.del("tags")
+
     await client.sadd("tags", "redis", "node", "redis")
-    console.log("SMEMBERS tags ->", await client.smembers("tags"))
 
-    console.log("\n=== HASHES ===")
+    await client.smembers("tags")
+
+    // HASHES: store and retrieve a simple object-like structure
+
     await client.del("user:1")
-    await client.hset("user:1", "name", "himalay", "role", "dev")
-    console.log("HGETALL user:1 ->", await client.hgetall("user:1"))
 
-    console.log("\n=== SORTED SETS ===")
+    await client.hset("user:1", "name", "himalay", "role", "dev")
+
+    await client.hgetall("user:1")
+
+    // SORTED SETS: add scored members and read them with scores
+
     await client.del("scores")
+
     await client.zadd("scores", 10, "a", 20, "b")
-    console.log(
-        "ZRANGE scores 0 -1 WITHSCORES ->",
-        await client.zrange("scores", 0, -1, "WITHSCORES")
-    )
+
+    await client.zrange("scores", 0, -1, "WITHSCORES")
 }
 
 main()
