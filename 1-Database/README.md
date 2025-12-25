@@ -89,6 +89,7 @@ UPDATE accounts SET balance = balance + 100 WHERE id = 2;
 COMMIT;
 -- or
 ROLLBACK;
+```
 
 ### 4.4 Autocommit
 - Default mode in most databases
@@ -106,58 +107,203 @@ All operations inside a transaction either complete fully or none of them are ap
 A transaction moves the database from one valid state to another while respecting constraints.
 
 ### Isolation
-Multiple transactions can execute concurrently without seeing each other’s intermediate states.
+Multiple transactions can execute concurrently without seeing each other's intermediate states.
 
 ### Durability
 Once a transaction is committed, its changes survive crashes using logs and disk writes.
 
 ---
 
-## 6. Isolation Levels (Explained Using Transactions)
+## 6. Isolation Levels (Detailed)
 
-Isolation level defines how visible one transaction’s changes are to other transactions.
+Isolation level defines how visible one transaction's changes are to other transactions. Each level solves different concurrency problems but with trade-offs in performance and consistency.
 
 ---
 
 ### 6.1 Read Uncommitted
-A transaction can read data written by another uncommitted transaction.
 
-Issue:
-- Dirty reads
+**What it allows:**
+A transaction can read data written by another uncommitted transaction (dirty data).
+
+**Problems it solves:**
+- None (weakest isolation)
+
+**Problems it causes:**
+- **Dirty Reads**: Reading uncommitted changes that might be rolled back
+- **Non-repeatable Reads**: Same query returns different results within the transaction
+- **Phantom Reads**: New rows appear in range queries
+
+**Example:**
+```
+Transaction A: UPDATE accounts SET balance = 500 WHERE id = 1; (not committed)
+Transaction B: SELECT balance FROM accounts WHERE id = 1; → Returns 500 (dirty read)
+Transaction A: ROLLBACK; (Transaction B read invalid data)
+```
+
+**Use case:**
+- Rarely used in production
+- Only when approximate data is acceptable
 
 ---
 
 ### 6.2 Read Committed
-A transaction can read only committed data, but repeated reads may return different values.
 
-Issue:
-- Non-repeatable reads  
-Default in PostgreSQL and Oracle.
+**What it allows:**
+A transaction can only read data that has been committed by other transactions.
+
+**Problems it solves:**
+- **Dirty Reads**: Prevented ✓
+
+**Problems it still has:**
+- **Non-repeatable Reads**: Same row may return different values if read twice
+- **Phantom Reads**: New rows can appear in range queries
+
+**Example:**
+```
+Transaction A: SELECT balance FROM accounts WHERE id = 1; → Returns 1000
+Transaction B: UPDATE accounts SET balance = 500 WHERE id = 1; COMMIT;
+Transaction A: SELECT balance FROM accounts WHERE id = 1; → Returns 500 (non-repeatable read)
+```
+
+**Default in:**
+- PostgreSQL
+- Oracle
+- SQL Server
+
+**Use case:**
+- Most common isolation level
+- Good balance of consistency and performance
 
 ---
 
 ### 6.3 Repeatable Read
-Rows read by a transaction cannot change until the transaction ends.
 
-Issue:
-- Phantom reads  
-Default in MySQL (InnoDB).
+**What it allows:**
+Once a transaction reads a row, that row's values remain consistent for the entire transaction.
+
+**Problems it solves:**
+- **Dirty Reads**: Prevented ✓
+- **Non-repeatable Reads**: Prevented ✓
+
+**Problems it still has:**
+- **Phantom Reads**: New rows matching the query criteria can appear
+
+**Example:**
+```
+Transaction A: SELECT * FROM accounts WHERE balance > 1000; → Returns 5 rows
+Transaction B: INSERT INTO accounts VALUES (6, 1500); COMMIT;
+Transaction A: SELECT * FROM accounts WHERE balance > 1000; → Returns 6 rows (phantom read)
+```
+
+**Implementation:**
+- MySQL (InnoDB): Uses MVCC (Multi-Version Concurrency Control)
+- Prevents phantom reads in practice
+
+**Default in:**
+- MySQL (InnoDB)
+
+**Use case:**
+- When you need consistent row-level reads
+- Financial applications
 
 ---
 
 ### 6.4 Serializable
-Transactions behave as if they run one after another, not concurrently.
 
-- Safest isolation level
-- Lowest concurrency
-- Highest overhead
+**What it allows:**
+Transactions execute as if they were run one after another, not concurrently.
+
+**Problems it solves:**
+- **Dirty Reads**: Prevented ✓
+- **Non-repeatable Reads**: Prevented ✓
+- **Phantom Reads**: Prevented ✓
+
+**Problems it still has:**
+- None (strongest isolation)
+
+**Trade-offs:**
+- Highest consistency
+- Lowest concurrency (transactions may wait/retry)
+- Performance overhead
+- Possible deadlocks
+
+**Implementation approaches:**
+- Locks on read ranges
+- Serializable Snapshot Isolation (PostgreSQL)
+- Optimistic concurrency control
+
+**Use case:**
+- Critical financial transactions
+- When absolute consistency is required
+- Systems with low concurrency needs
+
+---
+
+### 6.5 Isolation Level Comparison Table
+
+| Isolation Level | Dirty Reads | Non-repeatable Reads | Phantom Reads | Performance |
+|----------------|-------------|---------------------|---------------|-------------|
+| Read Uncommitted | ❌ Possible | ❌ Possible | ❌ Possible | ⚡ Fastest |
+| Read Committed | ✅ Prevented | ❌ Possible | ❌ Possible | ⚡ Fast |
+| Repeatable Read | ✅ Prevented | ✅ Prevented | ❌ Possible* | 🔄 Moderate |
+| Serializable | ✅ Prevented | ✅ Prevented | ✅ Prevented | 🐌 Slowest |
+
+*MySQL InnoDB prevents phantom reads at Repeatable Read level
+
+---
+
+### 6.6 How to Set Isolation Level
+
+**PostgreSQL:**
+```sql
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+```
+
+**MySQL:**
+```sql
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+```
+
+**Check current level:**
+```sql
+-- PostgreSQL
+SHOW TRANSACTION ISOLATION LEVEL;
+
+-- MySQL
+SELECT @@transaction_isolation;
+```
+
+---
+
+### 6.7 Choosing the Right Isolation Level
+
+**Use Read Committed when:**
+- You need good performance
+- Occasional stale reads are acceptable
+- Most web applications
+
+**Use Repeatable Read when:**
+- You need consistent reads within a transaction
+- Financial calculations
+- Report generation
+
+**Use Serializable when:**
+- Absolute consistency is critical
+- Banking transactions
+- Inventory management with strict rules
+- Low concurrency workloads
 
 ---
 
 ## 7. Scaling a Database
 
 ### What is Scaling
-Scaling means increasing the system’s ability to handle more users, data, or queries.
+Scaling means increasing the system's ability to handle more users, data, or queries.
 
 ---
 
@@ -329,7 +475,8 @@ Example:
 ## 16. Summary
 
 - Transactions ensure correctness
-- Isolation controls concurrency
+- ACID properties guarantee data integrity
+- Isolation levels control concurrency with different trade-offs
 - Replication improves availability
 - Sharding enables scale
 - Distributed systems require trade-offs
